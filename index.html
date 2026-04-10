@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEWEL-OS Command Center</title>
+<style>
+  :root {
+    --bg: #07070f;
+    --bg2: #0d0d1a;
+    --bg3: #12121f;
+    --border: #1e1e30;
+    --cyan: #00d4ff;
+    --red: #ff4757;
+    --orange: #ff6b35;
+    --yellow: #ffd32a;
+    --green: #2ed573;
+    --purple: #a55eea;
+    --text: #e0e0f0;
+    --muted: #6b6b8a;
+    --header-h: 48px;
+    --sidebar-w: 200px;
+    --panel-w: 280px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; overflow-x: hidden; }
+
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px; gap: 12px; z-index: 100;
+  }
+  .logo { font-size: 15px; font-weight: 700; color: var(--cyan); letter-spacing: 2px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .header-spacer { flex: 1; }
+  .status-pill {
+    padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+    border: 1px solid; display: flex; align-items: center; gap: 5px;
+  }
+  .pill-green { border-color: var(--green); color: var(--green); }
+  .pill-red { border-color: var(--red); color: var(--red); }
+  .pill-orange { border-color: var(--orange); color: var(--orange); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #clock { color: var(--cyan); font-size: 13px; letter-spacing: 1px; }
+  .gmt-label { color: var(--muted); font-size: 11px; }
+
+  #sidebar {
+    position: fixed; top: var(--header-h); left: 0; bottom: 0;
+    width: var(--sidebar-w); background: var(--bg2);
+    border-right: 1px solid var(--border); overflow-y: auto; z-index: 90;
+    display: flex; flex-direction: column;
+  }
+  .nav-section { padding: 12px 0; }
+  .nav-label { padding: 4px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+  .nav-item {
+    display: flex; align-items: center; padding: 7px 14px; cursor: pointer;
+    border-left: 2px solid transparent; transition: all 0.15s; gap: 8px;
+    color: var(--muted); text-decoration: none;
+  }
+  .nav-item:hover, .nav-item.active { background: var(--bg3); border-left-color: var(--cyan); color: var(--text); }
+  .nav-item .icon { font-size: 14px; width: 16px; text-align: center; }
+  .nav-item .label { flex: 1; }
+  .badge { padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+  .badge-red { background: #ff475722; color: var(--red); border: 1px solid #ff475744; }
+  .badge-orange { background: #ff6b3522; color: var(--orange); border: 1px solid #ff6b3544; }
+  .badge-yellow { background: #ffd32a22; color: var(--yellow); border: 1px solid #ffd32a44; }
+  .badge-cyan { background: #00d4ff22; color: var(--cyan); border: 1px solid #00d4ff44; }
+  .badge-green { background: #2ed57322; color: var(--green); border: 1px solid #2ed57344; }
+  .badge-gray { background: #ffffff11; color: var(--muted); border: 1px solid #ffffff22; }
+
+  .income-meter { padding: 14px; margin: 8px 8px 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg3); }
+  .income-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  .income-value { font-size: 18px; font-weight: 700; color: var(--green); }
+  .income-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); border-radius: 2px; }
+
+  #main {
+    margin-left: var(--sidebar-w); margin-right: var(--panel-w);
+    margin-top: var(--header-h); padding: 16px; overflow-y: auto;
+    min-height: calc(100vh - var(--header-h));
+  }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; border-top: 2px solid;
+  }
+  .stat-card.overdue { border-top-color: var(--red); }
+  .stat-card.p1 { border-top-color: var(--orange); }
+  .stat-card.p2 { border-top-color: var(--yellow); }
+  .stat-card.resolved { border-top-color: var(--green); }
+  .stat-number { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat-card.overdue .stat-number { color: var(--red); }
+  .stat-card.p1 .stat-number { color: var(--orange); }
+  .stat-card.p2 .stat-number { color: var(--yellow); }
+  .stat-card.resolved .stat-number { color: var(--green); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .section { margin-bottom: 24px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text); }
+  .section-badge { font-size: 11px; }
+
+  .task-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px 14px; margin-bottom: 8px; border-left: 3px solid;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .task-card.overdue { border-left-color: var(--red); }
+  .task-card.p1 { border-left-color: var(--orange); }
+  .task-card.p2 { border-left-color: var(--yellow); }
+  .task-card.done { border-left-color: var(--green); opacity: 0.6; }
+  .task-num { font-size: 10px; color: var(--muted); min-width: 20px; padding-top: 2px; }
+  .task-body { flex: 1; }
+  .task-title { font-size: 13px; color: var(--text); margin-bottom: 3px; }
+  .task-meta { font-size: 11px; color: var(--muted); }
+  .task-status {
+    padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
+    white-space: nowrap; align-self: flex-start;
+  }
+  .status-overdue { background: #ff475722; color: var(--red); border: 1px solid #ff475744; }
+  .status-inprogress { background: #00d4ff22; color: var(--cyan); border: 1px solid #00d4ff44; }
+  .status-planned { background: #ffffff11; color: var(--muted); border: 1px solid #ffffff22; }
+  .status-blocked { background: #a55eea22; color: var(--purple); border: 1px solid #a55eea44; }
+  .status-built { background: #2ed57322; color: var(--green); border: 1px solid #2ed57344; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .timeline { position: relative; padding-left: 20px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 5px; top: 0; bottom: 0;
+    width: 1px; background: var(--border);
+  }
+  .tl-item { position: relative; margin-bottom: 12px; }
+  .tl-item::before {
+    content: ''; position: absolute; left: -17px; top: 6px;
+    width: 7px; height: 7px; border-radius: 50%;
+    border: 1px solid var(--cyan); background: var(--bg);
+  }
+  .tl-date { font-size: 10px; color: var(--cyan); margin-bottom: 2px; }
+  .tl-title { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+  .tl-action { font-size: 11px; color: var(--muted); }
+
+  .oc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .oc-metric {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; text-align: center;
+  }
+  .oc-metric-val { font-size: 18px; font-weight: 700; }
+  .oc-metric-label { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; }
+  .alert-box {
+    border: 1px solid; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .alert-red { border-color: #ff475744; background: #ff475711; color: var(--red); }
+  .alert-orange { border-color: #ff6b3544; background: #ff6b3511; color: var(--orange); }
+  .code-block {
+    background: #000008; border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; font-family: 'SF Mono', monospace; font-size: 11px;
+    color: var(--cyan); position: relative; word-break: break-all;
+  }
+  .copy-btn {
+    position: absolute; top: 6px; right: 8px;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--muted); font-size: 10px; padding: 2px 7px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  .agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .agent-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .agent-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-idle { background: var(--muted); }
+  .dot-orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  .agent-name { font-size: 12px; color: var(--text); }
+  .agent-purpose { font-size: 10px; color: var(--muted); }
+  .model-tag {
+    margin-left: auto; padding: 1px 6px; border-radius: 8px; font-size: 9px;
+    font-weight: 700; text-transform: uppercase; white-space: nowrap;
+  }
+  .model-opus { background: #a55eea22; color: var(--purple); border: 1px solid #a55eea44; }
+  .model-sonnet { background: #00d4ff22; color: var(--cyan); border: 1px solid #00d4ff44; }
+  .model-haiku { background: #2ed57322; color: var(--green); border: 1px solid #2ed57344; }
+
+  .req-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .req-table th { background: var(--bg2); color: var(--muted); padding: 7px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+  .req-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .req-table tr:hover td { background: var(--bg3); }
+
+  #rightpanel {
+    position: fixed; top: var(--header-h); right: 0; bottom: 0;
+    width: var(--panel-w); background: var(--bg2);
+    border-left: 1px solid var(--border); overflow-y: auto; z-index: 90;
+    padding: 14px;
+  }
+  .panel-section { margin-bottom: 18px; }
+  .panel-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .blocker-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .blocker-item:last-child { border-bottom: none; }
+  .blocker-icon { font-size: 14px; line-height: 1.4; }
+  .blocker-name { font-size: 12px; color: var(--text); }
+  .blocker-fix { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .revenue-item { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .revenue-item:last-child { border-bottom: none; }
+  .revenue-name { font-size: 12px; color: var(--text); }
+  .revenue-status { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .revenue-tag { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; margin-top: 4px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">JEWEL<span>-OS</span></div>
+  <div style="width:1px;height:20px;background:var(--border)"></div>
+  <div style="font-size:11px;color:var(--muted)">Command Center</div>
+  <div class="header-spacer"></div>
+  <div id="header-wsl2-pill" class="status-pill pill-green"><div class="dot"></div>WSL2 OpenClaw</div>
+  <div id="header-hetzner-pill" class="status-pill pill-red"><div class="dot"></div>Hetzner 502</div>
+  <div id="header-overdue-pill" class="status-pill pill-orange"><div class="dot"></div>6 Overdue</div>
+  <div style="width:1px;height:20px;background:var(--border)"></div>
+  <div id="sync-time" style="font-size:10px;color:var(--muted)"></div>
+  <div class="gmt-label">GMT+8</div>
+  <div id="clock">--:--:--</div>
+</div>
+
+<div id="sidebar">
+  <div class="income-meter">
+    <div class="income-label">Bold Business</div>
+    <div class="income-value">$3,000<span style="font-size:12px;color:var(--muted)">/mo</span></div>
+    <div class="income-sub">Mar–Sep 2026 · Active</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:17%"></div></div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px">Month 1 of 7</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Workspace</div>
+    <a class="nav-item active" href="#today">
+      <div class="icon">◈</div><div class="label">Today</div>
+      <div id="badge-overdue" class="badge badge-red">6</div>
+    </a>
+    <a class="nav-item" href="#p1">
+      <div class="icon">▲</div><div class="label">P1 Tasks</div>
+      <div id="badge-p1" class="badge badge-orange">8</div>
+    </a>
+    <a class="nav-item" href="#p2">
+      <div class="icon">△</div><div class="label">P2 Tasks</div>
+      <div id="badge-p2" class="badge badge-yellow">10</div>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Systems</div>
+    <a class="nav-item" href="#agents">
+      <div class="icon">⬡</div><div class="label">Agents</div>
+      <div class="badge badge-cyan">8</div>
+    </a>
+    <a class="nav-item" href="#openclaw">
+      <div class="icon">⊕</div><div class="label">OpenClaw</div>
+      <div id="badge-openclaw" class="badge badge-red">502</div>
+    </a>
+    <a class="nav-item" href="#meetings">
+      <div class="icon">⊞</div><div class="label">Meetings</div>
+      <div id="badge-meetings" class="badge badge-gray">10</div>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Projects</div>
+    <a class="nav-item" href="#ats">
+      <div class="icon">◎</div><div class="label">ATS Reqs</div>
+      <div id="badge-ats" class="badge badge-cyan">8/30</div>
+    </a>
+    <a class="nav-item" href="#resolved">
+      <div class="icon">✓</div><div class="label">Resolved</div>
+      <div class="badge badge-green">15</div>
+    </a>
+  </div>
+</div>
+
+<div id="main">
+
+  <div class="stats-row">
+    <div class="stat-card overdue">
+      <div id="stat-overdue" class="stat-number">6</div>
+      <div class="stat-label">Overdue</div>
+      <div class="stat-sub">Carried from Apr 10</div>
+    </div>
+    <div class="stat-card p1">
+      <div id="stat-p1" class="stat-number">8</div>
+      <div class="stat-label">P1 This Week</div>
+      <div class="stat-sub">ATS migration + AWS</div>
+    </div>
+    <div class="stat-card p2">
+      <div id="stat-p2" class="stat-number">10</div>
+      <div class="stat-label">P2 Soon</div>
+      <div class="stat-sub">LinkedIn, Indeed, SQL</div>
+    </div>
+    <div class="stat-card resolved">
+      <div id="stat-resolved" class="stat-number">15</div>
+      <div class="stat-label">Resolved</div>
+      <div class="stat-sub">Last 30 days</div>
+    </div>
+  </div>
+
+  <div class="section" id="today">
+    <div class="section-header">
+      <div class="section-title">🔴 Overdue — Carried from Apr 10</div>
+      <div class="badge badge-red section-badge">6 tasks</div>
+    </div>
+    <div class="task-card overdue"><div class="task-num">01</div><div class="task-body"><div class="task-title">Remove OpenClaw login auth</div><div class="task-meta">Remove login auth requirement from OpenClaw agent dashboard · Apr 9 digest</div></div><div class="task-status status-overdue">OVERDUE</div></div>
+    <div class="task-card overdue"><div class="task-num">02</div><div class="task-body"><div class="task-title">Configure Agents — model structure</div><div class="task-meta">Set up dashboards + hardcode Haiku for crons, Opus for complex · Apr 9 digest</div></div><div class="task-status status-overdue">OVERDUE</div></div>
+    <div class="task-card overdue"><div class="task-num">03</div><div class="task-body"><div class="task-title">Staging + prod environments</div><div class="task-meta">Create staging and prod envs for dashboard deployment · Apr 9 digest</div></div><div class="task-status status-overdue">OVERDUE</div></div>
+    <div class="task-card overdue"><div class="task-num">04</div><div class="task-body"><div class="task-title">Kirro IDE account</div><div class="task-meta">Set up free credits for AWS development testing · Apr 9 digest</div></div><div class="task-status status-overdue">OVERDUE</div></div>
+    <div class="task-card overdue"><div class="task-num">05</div><div class="task-body"><div class="task-title">SMT state management fix</div><div class="task-meta">Fix checklist steps state management issues · Apr 9 digest</div></div><div class="task-status status-overdue">OVERDUE</div></div>
+    <div class="task-card overdue"><div class="task-num">06</div><div class="task-body"><div class="task-title">Review Base Forty-Four</div><div class="task-meta">Review design inspiration for application iteration · Apr 9 digest</div></div><div class="task-status status-overdue">OVERDUE</div></div>
+  </div>
+
+  <div class="section" id="p1">
+    <div class="section-header">
+      <div class="section-title">🟠 P1 — This Week</div>
+      <div class="badge badge-orange section-badge">8 tasks</div>
+    </div>
+    <div class="grid-2">
+      <div class="task-card p1"><div class="task-num">01</div><div class="task-body"><div class="task-title">Migrate ATS to AWS</div><div class="task-meta">Full migration — must be up for pilot · This week</div></div><div class="task-status status-inprogress">IN PROGRESS</div></div>
+      <div class="task-card p1"><div class="task-num">02</div><div class="task-body"><div class="task-title">Export DB Lovable → Supabase</div><div class="task-meta">Manual: DB + edge functions + secrets + RSL policies · ASAP</div></div><div class="task-status status-blocked">MANUAL REQ</div></div>
+      <div class="task-card p1"><div class="task-num">03</div><div class="task-body"><div class="task-title">CV Ranker Implementation</div><div class="task-meta">50% skill / 20% NtH / 20% industry / 10% comms · Awaiting Lenore+Abhi</div></div><div class="task-status status-blocked">APPROVAL</div></div>
+      <div class="task-card p1"><div class="task-num">04</div><div class="task-body"><div class="task-title">ATS Staging Beta Rollout</div><div class="task-meta">Parallel to Greenhouse · 2–4 weeks</div></div><div class="task-status status-planned">PLANNED</div></div>
+      <div class="task-card p1"><div class="task-num">05</div><div class="task-body"><div class="task-title">Schedule 1hr catch-up with Ron</div><div class="task-meta">Migration plan alignment · This week</div></div><div class="task-status status-planned">PLANNED</div></div>
+      <div class="task-card p1"><div class="task-num">06</div><div class="task-body"><div class="task-title">Upgrade OpenClaw (WSL2)</div><div class="task-meta">Enable dreaming feature · Latest release</div></div><div class="task-status status-planned">PLANNED</div></div>
+      <div class="task-card p1"><div class="task-num">07</div><div class="task-body"><div class="task-title">ATS Domain Setup</div><div class="task-meta">Bold Business domain for permanent portal URL</div></div><div class="task-status status-planned">PLANNED</div></div>
+      <div class="task-card p1"><div class="task-num">08</div><div class="task-body"><div class="task-title">SMT AI Follow-up + Scheduler</div><div class="task-meta">Draft AI follow-up + auto scheduler for SMT / Bold Amplify Hub</div></div><div class="task-status status-planned">PLANNED</div></div>
+    </div>
+  </div>
+
+  <div class="section" id="p2">
+    <div class="section-header">
+      <div class="section-title">🟡 P2 — Soon</div>
+      <div class="badge badge-yellow section-badge">10 tasks</div>
+    </div>
+    <div class="grid-2">
+      <div class="task-card p2"><div class="task-num">01</div><div class="task-body"><div class="task-title">Consolidated ATS feature list (recruiting only)</div><div class="task-meta">Apr 9 BAIIT</div></div></div>
+      <div class="task-card p2"><div class="task-num">02</div><div class="task-body"><div class="task-title">Create daily catch-up meeting schedule</div><div class="task-meta">Apr 9 BAIIT</div></div></div>
+      <div class="task-card p2"><div class="task-num">03</div><div class="task-body"><div class="task-title">LinkedIn API testing — volume limits</div><div class="task-meta">Apr 8 mtg</div></div></div>
+      <div class="task-card p2"><div class="task-num">04</div><div class="task-body"><div class="task-title">Indeed job board integration planning</div><div class="task-meta">Apr 8 mtg</div></div></div>
+      <div class="task-card p2"><div class="task-num">05</div><div class="task-body"><div class="task-title">Proactive sourcing: SQL migration from spreadsheets</div><div class="task-meta">Apr 8 mtg</div></div></div>
+      <div class="task-card p2"><div class="task-num">06</div><div class="task-body"><div class="task-title">Download PG Admin for Postgres DB access</div><div class="task-meta">Mar 30 huddle</div></div></div>
+      <div class="task-card p2"><div class="task-num">07</div><div class="task-body"><div class="task-title">Document Frappe gaps — catch up with Ed</div><div class="task-meta">Mar 31 huddle</div></div></div>
+      <div class="task-card p2"><div class="task-num">08</div><div class="task-body"><div class="task-title">Fix Daily Digest email hardcoding</div><div class="task-meta">Apr 1 AM huddle</div></div></div>
+      <div class="task-card p2"><div class="task-num">09</div><div class="task-body"><div class="task-title">SMT webhook/tool integration</div><div class="task-meta">Replace App Script endpoint · Apr 1 PM huddle</div></div></div>
+      <div class="task-card p2"><div class="task-num">10</div><div class="task-body"><div class="task-title">Design cron job system for Brio tasks</div><div class="task-meta">Sub-agent per task · Apr 1 PM / Apr 6</div></div></div>
+    </div>
+  </div>
+
+  <div class="section" id="agents">
+    <div class="section-header">
+      <div class="section-title">⬡ Agent Council</div>
+      <div class="badge badge-cyan section-badge">8 agents</div>
+    </div>
+    <div class="agent-grid">
+      <div class="agent-card"><div class="agent-dot dot-active"></div><div><div class="agent-name">life-advisor</div><div class="agent-purpose">Chief of Staff · daily briefings</div></div><div class="model-tag model-haiku">HAIKU</div></div>
+      <div class="agent-card"><div class="agent-dot dot-active"></div><div><div class="agent-name">code-executor</div><div class="agent-purpose">BB + W3J code · FastAPI/React</div></div><div class="model-tag model-sonnet">SONNET</div></div>
+      <div class="agent-card"><div class="agent-dot dot-orange"></div><div><div class="agent-name">elia</div><div class="agent-purpose">Strategy selector · ELIA framework</div></div><div class="model-tag model-haiku">HAIKU</div></div>
+      <div class="agent-card"><div class="agent-dot dot-active"></div><div><div class="agent-name">meeting-intelligence</div><div class="agent-purpose">Parse notes → action items</div></div><div class="model-tag model-haiku">HAIKU</div></div>
+      <div class="agent-card"><div class="agent-dot dot-idle"></div><div><div class="agent-name">automation-builder</div><div class="agent-purpose">Crons, workflows, registry</div></div><div class="model-tag model-sonnet">SONNET</div></div>
+      <div class="agent-card"><div class="agent-dot dot-active"></div><div><div class="agent-name">research-scout</div><div class="agent-purpose">Claude updates · market research</div></div><div class="model-tag model-haiku">HAIKU</div></div>
+      <div class="agent-card"><div class="agent-dot dot-orange"></div><div><div class="agent-name">openclaw-bridge</div><div class="agent-purpose">Route tasks → OpenClaw agents</div></div><div class="model-tag model-haiku">HAIKU</div></div>
+      <div class="agent-card"><div class="agent-dot dot-idle"></div><div><div class="agent-name">gmail-monitor</div><div class="agent-purpose">Email triage · reply drafting</div></div><div class="model-tag model-haiku">HAIKU</div></div>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted)">
+      <span style="color:var(--cyan)">Model Routing:</span> &nbsp;
+      <span style="color:var(--purple)">Opus</span> = architecture &nbsp;·&nbsp;
+      <span style="color:var(--cyan)">Sonnet</span> = code/analysis &nbsp;·&nbsp;
+      <span style="color:var(--green)">Haiku</span> = crons/classification &nbsp;·&nbsp;
+      Budget: $100–150/mo
+    </div>
+  </div>
+
+  <div class="section" id="openclaw">
+    <div class="section-header"><div class="section-title">⊕ OpenClaw Status</div></div>
+    <div class="oc-grid">
+      <div class="oc-metric"><div id="oc-wsl2-val" class="oc-metric-val" style="color:var(--green)">RUNNING</div><div class="oc-metric-label">WSL2 Service</div></div>
+      <div class="oc-metric"><div id="oc-hetzner-val" class="oc-metric-val" style="color:var(--red)">502</div><div class="oc-metric-label">Hetzner Remote</div></div>
+      <div class="oc-metric"><div id="oc-port-val" class="oc-metric-val" style="color:var(--orange)">BLOCKED</div><div class="oc-metric-label">WSL2 Port Proxy</div></div>
+      <div class="oc-metric"><div class="oc-metric-val" style="color:var(--cyan)">18789</div><div class="oc-metric-label">Gateway Port</div></div>
+      <div class="oc-metric"><div class="oc-metric-val" style="color:var(--green)">7.4GB</div><div class="oc-metric-label">WSL2 RAM Total</div></div>
+      <div class="oc-metric"><div class="oc-metric-val" style="color:var(--green)">200MB</div><div class="oc-metric-label">WSL2 RAM Used</div></div>
+    </div>
+    <div class="alert-box alert-red">⚠ Hetzner OpenClaw returning HTTP 502 — gchat.aixlabs.fun · SSH in: <code>ssh root@89.167.77.201 -p 443</code></div>
+    <div class="alert-box alert-orange">⚠ WSL2 port 18789 not forwarded to Windows host — run fix command below in Windows Terminal (Admin)</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Fix WSL2 Port Proxy (run as Admin in Windows Terminal):</div>
+    <div class="code-block" id="fix-cmd">
+      netsh interface portproxy add v4tov4 listenport=18789 listenaddress=0.0.0.0 connectport=18789 connectaddress=$(wsl hostname -I | awk '{print $1}')
+      <button class="copy-btn" onclick="copyFix()">COPY</button>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted)">Known issue: 100+ <code style="color:var(--cyan)">openclaw.json.clobbered</code> files from Mar 31 concurrent write bug — upgrade pending · USER.md must stay &lt;4,152 chars</div>
+  </div>
+
+  <div class="section" id="meetings">
+    <div class="section-header">
+      <div class="section-title">⊞ Meeting Timeline — Mar 30 → Apr 9</div>
+      <div class="badge badge-gray section-badge">10 sessions</div>
+    </div>
+    <div class="grid-2">
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-date">Mar 30 AM · BAIIT Huddle</div><div class="tl-title">Meetings consolidated to 45-min daily</div><div class="tl-action">Jewel schedules catch-ups · joins Ron BAIIT calls</div></div>
+        <div class="tl-item"><div class="tl-date">Mar 30 PM · BAIIT Huddle</div><div class="tl-title">Jewel absorbs Ron's 33-task backlog</div><div class="tl-action">Shadow Ron · Google Chat with Ron connected</div></div>
+        <div class="tl-item"><div class="tl-date">Mar 31 AM · BAIIT Huddle</div><div class="tl-title">ATS confirmed as custom build</div><div class="tl-action">Ed: "Huge win" · API limits hit · Brio → React/JS</div></div>
+        <div class="tl-item"><div class="tl-date">Mar 31 · Bold AI Office Hours</div><div class="tl-title">ATS presented to leadership</div><div class="tl-action">LinkedIn solved, AI scoring active, Zara remaining</div></div>
+        <div class="tl-item"><div class="tl-date">Apr 1 AM · BAIIT Huddle</div><div class="tl-title">Claude API limit hit — 11 Brio crons on Sonnet</div><div class="tl-action">10x cost overrun · design cron system</div></div>
+      </div>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-date">Apr 1 PM · BAIIT Huddle</div><div class="tl-title">Brio was on GPT 5.2 — root cause found</div><div class="tl-action">Sub-agent per cron task design begins</div></div>
+        <div class="tl-item"><div class="tl-date">Apr 2 · BAIIT (x2)</div><div class="tl-title">Jewel absent (sick)</div><div class="tl-action">Playwright eliminated · Brave→Clay→Apollo confirmed</div></div>
+        <div class="tl-item"><div class="tl-date">Apr 6 AM · BAIIT Huddle</div><div class="tl-title">Mel surgery — Ron leads</div><div class="tl-action">Configure agents P0 · ATS proposal due Apr 7</div></div>
+        <div class="tl-item"><div class="tl-date">Apr 8 · ATS Decision Meeting</div><div class="tl-title">BUILD DECISION — Ed's verdict</div><div class="tl-action">Keep Greenhouse · staging+beta 2–4 weeks · Lovable→Supabase→AWS</div></div>
+        <div class="tl-item"><div class="tl-date">Apr 9 · BAIIT + Daily Digest</div><div class="tl-title">CV ranker weights agreed</div><div class="tl-action">50/20/20/10 split · Awaiting Lenore+Abhi approval</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="ats">
+    <div class="section-header">
+      <div class="section-title">◎ Bold Amplify ATS — Top 30 Requirements</div>
+      <div class="badge badge-cyan section-badge">8/30 confirmed</div>
+    </div>
+    <table class="req-table">
+      <thead><tr><th>#</th><th>Requirement</th><th>Category</th><th>Status</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--muted)">1</td><td>AI-powered candidate scoring</td><td><span class="badge badge-cyan">Core AI</span></td><td><span class="task-status status-built">BUILT</span></td><td style="color:var(--muted)">LinkedIn AI scoring live</td></tr>
+        <tr><td style="color:var(--muted)">2</td><td>CV/Resume ranker — weighted scoring</td><td><span class="badge badge-cyan">Core AI</span></td><td><span class="task-status status-blocked">APPROVAL</span></td><td style="color:var(--muted)">50/20/20/10 · Awaiting Lenore+Abhi</td></tr>
+        <tr><td style="color:var(--muted)">3</td><td>LinkedIn job posting integration</td><td><span class="badge badge-gray">Integrations</span></td><td><span class="task-status status-built">BUILT</span></td><td style="color:var(--muted)">Direct posting live Mar 31</td></tr>
+        <tr><td style="color:var(--muted)">4</td><td>LinkedIn API volume management</td><td><span class="badge badge-gray">Integrations</span></td><td><span class="task-status status-inprogress">IN PROGRESS</span></td><td style="color:var(--muted)">Rigorous testing needed</td></tr>
+        <tr><td style="color:var(--muted)">5</td><td>Candidate application intake</td><td><span class="badge badge-green">Core</span></td><td><span class="task-status status-built">BUILT</span></td><td style="color:var(--muted)">Forms + intake pipeline live</td></tr>
+        <tr><td style="color:var(--muted)">6</td><td>Zara agent integration</td><td><span class="badge badge-orange">AI Agents</span></td><td><span class="task-status status-inprogress">IN PROGRESS</span></td><td style="color:var(--muted)">Remaining integration task — P1</td></tr>
+        <tr><td style="color:var(--muted)">7</td><td>Indeed job board integration</td><td><span class="badge badge-gray">Integrations</span></td><td><span class="task-status status-planned">PLANNED</span></td><td style="color:var(--muted)">Plan integration into ATS</td></tr>
+        <tr><td style="color:var(--muted)">8</td><td>Proactive sourcing — SQL DB pipeline</td><td><span class="badge badge-yellow">Sourcing</span></td><td><span class="task-status status-planned">PLANNED</span></td><td style="color:var(--muted)">Move spreadsheets → SQL for agent orchestration</td></tr>
+        <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px;font-style:italic">Requirements 9–30: Awaiting Google Doc access (share as "Anyone with link — Viewer")</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">CV Ranker Scoring Weights (Confirmed Apr 9 · Awaiting Lenore+Abhi final approval)</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:40px;height:6px;background:var(--cyan);border-radius:3px"></div><span style="font-size:11px;color:var(--text)">50% Skill Fit</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:6px;background:var(--orange);border-radius:3px"></div><span style="font-size:11px;color:var(--text)">20% Nice-to-Haves</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:6px;background:var(--yellow);border-radius:3px"></div><span style="font-size:11px;color:var(--text)">20% Industry Exp</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:6px;background:var(--green);border-radius:3px"></div><span style="font-size:11px;color:var(--text)">10% Communication</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="resolved">
+    <div class="section-header">
+      <div class="section-title">✓ Resolved — Last 30 Days</div>
+      <div class="badge badge-green section-badge">15 tasks</div>
+    </div>
+    <div class="grid-2">
+      <div class="task-card done"><div class="task-num">✓</div><div class="task-body"><div class="task-title">Draft ATS proposal</div><div class="task-meta">Apr 8 · BUILD decision locked</div></div></div>
+      <div class="task-card done"><div class="task-num">✓</div><div class="task-body"><div class="task-title">Present ATS to Lenore</div><div class="task-meta">Mar 31 · Ed: "Huge win"</div></div></div>
+      <div class="task-card done"><div class="task-num">✓</div><div class="task-body"><div class="task-title">ATS at Bold AI Office Hours</div><div class="task-meta">Mar 31 · LinkedIn + AI scoring live</div></div></div>
+      <div class="task-card done"><div class="task-num">✓</div><div class="task-body"><div class="task-title">Share ATS GitHub repo</div><div class="task-meta">Mar 31 · W3JDev/interviewos</div></div></div>
+      <div class="task-card done"><div class="task-num">✓</div><div class="task-body"><div class="task-title">Fix daily digest</div><div class="task-meta">Apr 1 · Running and delivering</div></div></div>
+      <div class="task-card done"><div class="task-num">✓</div><div class="task-body"><div class="task-title">Join Ron's BAIIT calls</div><div class="task-meta">Mar 30 · Ongoing</div></div></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="rightpanel">
+  <div class="panel-section">
+    <div class="panel-title">OpenClaw Quick Status</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px">WSL2 (BRIO)</span>
+        <span id="rp-wsl2" class="status-pill pill-green" style="padding:2px 8px;font-size:10px"><div class="dot"></div>LIVE</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px">Hetzner (gchat.aixlabs.fun)</span>
+        <span id="rp-hetzner" class="status-pill pill-red" style="padding:2px 8px;font-size:10px">502 DOWN</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+        <span style="font-size:12px">Port 18789 → Windows</span>
+        <span id="rp-port" class="status-pill pill-orange" style="padding:2px 8px;font-size:10px">NOT FWD</span>
+      </div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-title">W3J Revenue Queue</div>
+    <div class="revenue-item"><div class="revenue-name">Bijou AI</div><div class="revenue-status">WhatsApp SaaS · RM 1.08M ARR target Dec 2026</div><div><span class="revenue-tag" style="background:#a55eea22;color:var(--purple);border:1px solid #a55eea44">PARKED</span></div></div>
+    <div class="revenue-item"><div class="revenue-name">ArtisanAI v2</div><div class="revenue-status">Resume builder — needs $5/resume paywall</div><div><span class="revenue-tag" style="background:#ffd32a22;color:var(--yellow);border:1px solid #ffd32a44">NEEDS PAYWALL</span></div></div>
+    <div class="revenue-item"><div class="revenue-name">GitLaunch-AI</div><div class="revenue-status">Needs $9/mo Stripe wrapper</div><div><span class="revenue-tag" style="background:#ffd32a22;color:var(--yellow);border:1px solid #ffd32a44">NEEDS STRIPE</span></div></div>
+    <div class="revenue-item"><div class="revenue-name">PunchClock v2.5</div><div class="revenue-status">15,000+ daily users · LHDN 2025 HR OS</div><div><span class="revenue-tag" style="background:#2ed57322;color:var(--green);border:1px solid #2ed57344">ACTIVE</span></div></div>
+    <div class="revenue-item"><div class="revenue-name">SuaraKira v2</div><div class="revenue-status">Ready for Product Hunt</div><div><span class="revenue-tag" style="background:#00d4ff22;color:var(--cyan);border:1px solid #00d4ff44">LAUNCH READY</span></div></div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-title">GitHub · interviewos</div>
+    <div style="font-size:11px;display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text)">Open Issues</span><span id="gh-issues" style="color:var(--orange)">25</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text)">Repo</span><span style="color:var(--cyan)">W3JDev/interviewos</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function $id(id) { return document.getElementById(id); }
+  function setText(id, val) { const el = $id(id); if (el) el.textContent = val; }
+
+  async function loadStatus() {
+    try {
+      const res = await fetch('./status.json?t=' + Date.now());
+      if (!res.ok) return;
+      const d = await res.json();
+
+      if (d.tasks) {
+        setText('stat-overdue', d.tasks.overdue);
+        setText('stat-p1', d.tasks.p1);
+        setText('stat-p2', d.tasks.p2);
+        setText('stat-resolved', d.tasks.resolved);
+        setText('badge-overdue', d.tasks.overdue);
+        setText('badge-p1', d.tasks.p1);
+        setText('badge-p2', d.tasks.p2);
+        const op = $id('header-overdue-pill');
+        if (op) {
+          op.className = d.tasks.overdue > 0 ? 'status-pill pill-red' : 'status-pill pill-green';
+          op.innerHTML = '<div class="dot"></div>' + d.tasks.overdue + ' Overdue';
+        }
+      }
+
+      if (d.openclaw) {
+        const wsl2 = d.openclaw.wsl2 || {};
+        const hetz = d.openclaw.hetzner || {};
+        const up2 = wsl2.status === 'up';
+        const uph = hetz.status === 'up';
+        const wp = $id('header-wsl2-pill');
+        if (wp) { wp.className = 'status-pill ' + (up2 ? 'pill-green' : 'pill-red'); wp.innerHTML = '<div class="dot"></div>WSL2 ' + (up2 ? 'Live' : 'Down'); }
+        const hp = $id('header-hetzner-pill');
+        if (hp) { hp.className = 'status-pill ' + (uph ? 'pill-green' : 'pill-red'); hp.innerHTML = '<div class="dot"></div>Hetzner ' + (uph ? 'Live' : (hetz.http_code || 'Down')); }
+        const ob = $id('badge-openclaw');
+        if (ob) { ob.className = 'badge ' + (up2 && uph ? 'badge-green' : 'badge-red'); ob.textContent = up2 && uph ? 'OK' : (up2 ? (hetz.http_code || 'ERR') : 'DOWN'); }
+        const wv = $id('oc-wsl2-val');
+        if (wv) { wv.textContent = up2 ? 'RUNNING' : 'DOWN'; wv.style.color = up2 ? 'var(--green)' : 'var(--red)'; }
+        const hv = $id('oc-hetzner-val');
+        if (hv) { hv.textContent = uph ? '200' : (hetz.http_code || 'ERR'); hv.style.color = uph ? 'var(--green)' : 'var(--red)'; }
+        const pv = $id('oc-port-val');
+        if (pv) { const pok = wsl2.port_forwarded; pv.textContent = pok ? 'OK' : 'BLOCKED'; pv.style.color = pok ? 'var(--green)' : 'var(--orange)'; }
+        const rw = $id('rp-wsl2'); if (rw) { rw.className = 'status-pill ' + (up2 ? 'pill-green' : 'pill-red') + ' '; rw.innerHTML = (up2 ? '<div class="dot"></div>LIVE' : 'DOWN'); }
+        const rh = $id('rp-hetzner'); if (rh) { rh.className = 'status-pill ' + (uph ? 'pill-green' : 'pill-red'); rh.textContent = uph ? 'LIVE' : (hetz.http_code || 'DOWN'); }
+        const rp2 = $id('rp-port'); if (rp2) { const pok = wsl2.port_forwarded; rp2.className = 'status-pill ' + (pok ? 'pill-green' : 'pill-orange'); rp2.textContent = pok ? 'FORWARDED' : 'NOT FWD'; }
+      }
+
+      if (d.meetings) setText('badge-meetings', d.meetings.count);
+      if (d.ats_reqs) setText('badge-ats', d.ats_reqs.confirmed + '/' + d.ats_reqs.total);
+      if (d.github && d.github.interviewos) setText('gh-issues', d.github.interviewos.open_issues);
+
+      if (d.synced_at) {
+        const mins = Math.floor((Date.now() - new Date(d.synced_at).getTime()) / 60000);
+        setText('sync-time', mins < 2 ? 'live' : mins + 'm ago');
+      }
+    } catch(e) { /* status.json not yet pushed — static data shown */ }
+  }
+
+  loadStatus();
+  setInterval(loadStatus, 5 * 60 * 1000);
+
+  function updateClock() {
+    const now = new Date();
+    const gmt8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const h = String(gmt8.getUTCHours()).padStart(2,'0');
+    const m = String(gmt8.getUTCMinutes()).padStart(2,'0');
+    const s = String(gmt8.getUTCSeconds()).padStart(2,'0');
+    $id('clock').textContent = h + ':' + m + ':' + s;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  document.querySelectorAll('.nav-item[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      a.classList.add('active');
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  function copyFix() {
+    const cmd = "netsh interface portproxy add v4tov4 listenport=18789 listenaddress=0.0.0.0 connectport=18789 connectaddress=$(wsl hostname -I | awk '{print $1}')";
+    navigator.clipboard.writeText(cmd).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'COPIED!'; btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)';
+      setTimeout(() => { btn.textContent = 'COPY'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+    });
+  }
+
+  const sections = ['today','p1','p2','agents','openclaw','meetings','ats','resolved'];
+  const navItems = document.querySelectorAll('.nav-item[href^="#"]');
+  document.getElementById('main').addEventListener('scroll', () => {
+    const scrollTop = document.getElementById('main').scrollTop;
+    let active = 'today';
+    sections.forEach(id => { const el = $id(id); if (el && el.offsetTop - 80 <= scrollTop) active = id; });
+    navItems.forEach(n => { n.classList.toggle('active', n.getAttribute('href') === '#' + active); });
+  }, { passive: true });
+</script>
+</body>
+</html>
