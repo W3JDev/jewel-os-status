@@ -1,33 +1,33 @@
 {
-  "synced_at": "2026-04-11T10:00:00Z",
-  "synced_at_gmt8": "2026-04-11 18:00:00",
-  "note": "Static seed — replace by running jewel-os-syncer.py on WSL2",
+  "synced_at": "2026-04-13T04:45:01Z",
+  "synced_at_gmt8": "2026-04-13 20:45:01",
   "tasks": {
     "overdue": 6,
     "p1": 8,
     "p2": 10,
-    "resolved": 15
+    "resolved": 14
   },
   "openclaw": {
     "wsl2": {
-      "status": "unknown",
+      "status": "up",
       "port": 18789,
+      "http_code": 200,
       "port_forwarded": false
     },
     "hetzner": {
-      "status": "down",
+      "status": "restricted",
       "url": "gchat.aixlabs.fun",
-      "http_code": 502
+      "http_code": 403
     }
   },
   "github": {
     "interviewos": {
       "open_issues": 25,
-      "last_checked": "2026-04-11"
+      "last_checked": "2026-04-13"
     }
   },
   "meetings": {
-    "count": 10,
+    "count": 0,
     "latest": "Apr 9 · BAIIT + Daily Digest"
   },
   "ats_reqs": {
